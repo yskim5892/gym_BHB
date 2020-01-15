@@ -21,6 +21,8 @@ class BHB_renderer(object):
         self.cell_h = 20
         self.w = self.cell_w * self.size
         self.h = self.cell_h * (self.size + 2)
+        self.low = 0
+        self.high = 255
 
         self.block_templates = []
         for i in range(31):
@@ -38,12 +40,12 @@ class BHB_renderer(object):
             for x in range(center[0] - r, center[0] + r):
                 for y in range(center[1] - r, center[1] // 2 + r):
                     if circle_dist(x - center[0], y - center[1]) <= r:
-                        canvas[x, y] = [0, 0, 0]
+                        canvas[x, y] = [self.low, self.low, self.low]
         elif gauge == 1:
             r = self.cell_w // 4
             for x in range(center[0] - r, center[0] + r):
                 for y in range(center[1] - r, center[1] + r):
-                    canvas[x, y] = [0, 0, 0]
+                    canvas[x, y] = [self.low, self.low, self.low]
         return canvas
 
     def block_template(self, block):
@@ -52,12 +54,12 @@ class BHB_renderer(object):
         mh = self.cell_h // 20
         for x in range(0, self.cell_w):
             for y in range(mh):
-                canvas[x, y] = [1, 1, 1]
-                canvas[x, self.cell_h - 1 - y] = [1, 1, 1]
+                canvas[x, y] = [self.high, self.high, self.high]
+                canvas[x, self.cell_h - 1 - y] = [self.high, self.high, self.high]
         for y in range(0, self.cell_h):
             for x in range(mw):
-                canvas[x, y] = [1, 1, 1]
-                canvas[self.cell_w - 1 - x, y] = [1, 1, 1]
+                canvas[x, y] = [self.high, self.high, self.high]
+                canvas[self.cell_w - 1 - x, y] = [self.high, self.high, self.high]
 
         if block == 27:
             return canvas
@@ -66,15 +68,15 @@ class BHB_renderer(object):
             for x in range(mw * 2, self.cell_w - mw * 2 + 1):
                 for y in range(mh * 2, self.cell_h - mh * 2 + 1):
                     if (y - x) % period == 0:
-                        canvas[x, y] = [1, 1, 1]
+                        canvas[x, y] = [self.high, self.high, self.high]
             return canvas
 
         color_ = block // 9          # R, G, B
         shape = (block % 9) // 3    # circle, square, triangle
         pattern = block % 3         # empty, stripe, full
         
-        color = [0, 0, 0]
-        color[color_] = 1
+        color = [self.low, self.low, self.low]
+        color[color_] = self.high
 
         dist_func = circle_dist if shape == 0 else square_dist if shape == 1 else triangle_dist
 

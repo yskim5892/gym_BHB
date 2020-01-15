@@ -1,6 +1,9 @@
 import numpy as np
 import random
 import math
+import sys, os
+
+sys.path.append(os.path.dirname(__file__))
 from BHB_renderer import BHB_renderer
 import gym
 from gym import error, spaces, utils
@@ -31,7 +34,7 @@ class Bauhausbreak(gym.Env):
         self.size = 8
         self.renderer = BHB_renderer(self.size)
 
-        self.observation_space = spaces.Box(low=0, high=1, shape=(self.renderer.w, self.renderer.h, 3))
+        self.observation_space = spaces.Box(low=self.renderer.low, high=self.renderer.high, shape=(self.renderer.w, self.renderer.h, 3))
         self.action_space = spaces.Discrete(self.size)
                 
     def obs(self):
@@ -39,15 +42,15 @@ class Bauhausbreak(gym.Env):
 
     def step(self, action):
         blocks = self.state.blocks.copy()
-        if(blocks[action][self.size-1] != 27):
+        if(blocks[action, self.size-1] != 27):
             new_state = BHB_State(True, blocks, self.state.gauge, random.randrange(0, 27), self.state.score)
             self.state = new_state
-            return new_state, 0
+            return self.obs(), 0, True, {}
 
 
         for y in range(0, self.size):
-            if(blocks[action][y] == 27):
-                blocks[action][y] = self.state.current_block
+            if(blocks[action, y] == 27):
+                blocks[action, y] = self.state.current_block
                 break
 
         sum_rew = 0
@@ -58,7 +61,6 @@ class Bauhausbreak(gym.Env):
             rew, removed_columns = self.break_dummy_blocks(matchings, blocks)
             sum_rew += rew
             self.drop_boxes(removed_columns, blocks)
-        sum_rew *= pow(1.0002, self.state.score)
         
         new_block = random.randrange(0, 27)
         gauge = self.state.gauge
@@ -66,14 +68,14 @@ class Bauhausbreak(gym.Env):
         if(gauge == self.size):
             gauge = 0
             for x in range(0, self.size):
-                if(blocks[x][self.size-1] != 27):
+                if(blocks[x, self.size-1] != 27):
                     new_state = BHB_State(True, blocks, gauge, new_block, self.state.score + sum_rew)
                     self.state = new_state
                     return self.obs(), sum_rew, True, {}
             for x in range(0, self.size):
                 for y in range(self.size - 1, 0, -1):
-                    blocks[x][y] = blocks[x][y - 1]
-                blocks[x][0] = 30
+                    blocks[x, y] = blocks[x, y - 1]
+                blocks[x, 0] = 30
         new_state = BHB_State(False, blocks, gauge, new_block, self.state.score + sum_rew)
         self.state = new_state
         return self.obs(), sum_rew, False, {}
@@ -93,9 +95,9 @@ class Bauhausbreak(gym.Env):
                 blocks[x][2] = random.randrange(0, 27)'''
         for x in range(0, self.size):
             if(x % 2 == 0):
-                blocks[x][0] = random.randrange(0, 27)
+                blocks[x, 0] = random.randrange(0, 27)
             else:
-                blocks[x][0] = 30
+                blocks[x, 0] = 30
 
         self.state = BHB_State(False, blocks, 0, random.randrange(0, 27),0)
         return self.obs()
@@ -111,15 +113,15 @@ class Bauhausbreak(gym.Env):
         sum_grade = 0
         for x in range(0, self.size):
             for y in range(0, self.size):
-                if(blocks[x][y] >= 27):
+                if(blocks[x, y] >= 27):
                     continue
-                if(x <= self.size - 3 and blocks[x+1][y] < 27 and blocks[x+2][y] < 27):
-                    grade = check_matching(blocks[x][y], blocks[x+1][y], blocks[x+2][y])
+                if(x <= self.size - 3 and blocks[x+1, y] < 27 and blocks[x+2, y] < 27):
+                    grade = check_matching(blocks[x, y], blocks[x+1, y], blocks[x+2, y])
                     if(grade != 0):
                         matchings.append(((x, y), 0, grade))
                         sum_grade += grade
-                if(y <= self.size - 3 and blocks[x][y+1] < 27 and blocks[x][y+2] < 27):
-                    grade = check_matching(blocks[x][y], blocks[x][y+1], blocks[x][y+2])
+                if(y <= self.size - 3 and blocks[x, y+1] < 27 and blocks[x, y+2] < 27):
+                    grade = check_matching(blocks[x, y], blocks[x, y+1], blocks[x, y+2])
                     if(grade != 0):
                         matchings.append(((x, y), 1, grade))
                         sum_grade += grade
@@ -127,9 +129,9 @@ class Bauhausbreak(gym.Env):
 
     def grade_to_rew(self, grade):
         if(grade == 1):
-            return 0
+            return 1
         if(grade == 2):
-            return 0
+            return 20
         if(grade == 3):
             return 300
         return 0
@@ -148,16 +150,16 @@ class Bauhausbreak(gym.Env):
             for i in range(0, 3):
                 x_ = x + i * dx
                 y_ = y + i * dy
-                blocks[x_][y_] = 27
+                blocks[x_, y_] = 27
                 removed_columns[x_] = 1
 
                 for dx_, dy_ in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     x__ = x_ + dx_
                     y__ = y_ + dy_
-                    if(x__ >= 0 and x__ < self.size and y__ >= 0 and y__ < self.size and blocks[x__][y__] >= 28):
-                        blocks[x__][y__] = blocks[x__][y__] - grade
-                        if(blocks[x__][y__] <= 27):
-                            blocks[x__][y__] = 27
+                    if(x__ >= 0 and x__ < self.size and y__ >= 0 and y__ < self.size and blocks[x__, y__] >= 28):
+                        blocks[x__, y__] = blocks[x__, y__] - grade
+                        if(blocks[x__, y__] <= 27):
+                            blocks[x__, y__] = 27
                             removed_columns[x__] = 1
         return rew, removed_columns
 
@@ -166,11 +168,10 @@ class Bauhausbreak(gym.Env):
             if (x in removed_columns):
                 removed_boxes_num = 0
                 for y in range(0, self.size):
-                    if (blocks[x][y] == 27):
+                    if (blocks[x, y] == 27):
                         removed_boxes_num += 1
                         continue
                     elif(removed_boxes_num >= 1):
-                        blocks[x][y - removed_boxes_num] = blocks[x][y]
-                        blocks[x][y] = 27
-
+                        blocks[x, y - removed_boxes_num] = blocks[x, y]
+                        blocks[x, y] = 27
 
